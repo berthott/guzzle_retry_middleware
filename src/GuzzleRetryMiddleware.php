@@ -76,7 +76,10 @@ class GuzzleRetryMiddleware
         'retry_only_if_retry_after_header' => false,
 
         // Only retry when status is equal to these response codes
-        'retry_on_status'                  => ['429', '503'],
+        'retry_on_status'                  => [],
+
+        // Only retry when status is not equal to these response codes
+        'retry_unless'                     => [],
 
         // Callback to trigger before delay occurs (accepts count, delay, request, response, options)
         'on_retry_callback'                => null,
@@ -235,7 +238,8 @@ class GuzzleRetryMiddleware
      */
     protected function shouldRetryHttpResponse(array $options, ?ResponseInterface $response = null): bool
     {
-        $statuses = array_map('\intval', (array) $options['retry_on_status']);
+        $retry_on_status = array_map('\intval', (array) $options['retry_on_status']);
+        $retry_unless = array_map('\intval', (array) $options['retry_unless']);
         $hasRetryAfterHeader = $response ? $response->hasHeader('Retry-After') : false;
 
         switch (true) {
@@ -247,7 +251,9 @@ class GuzzleRetryMiddleware
             // Conditions met; see if status code matches one that can be retried
             default:
                 $statusCode = $response ? $response->getStatusCode() : 0;
-                return in_array($statusCode, $statuses, true);
+                $unless = count($retry_unless) && !in_array($statusCode, $retry_unless, true);
+                $on_status = count($retry_on_status) && in_array($statusCode, $retry_on_status, true);
+                return $unless || $on_status;
         }
     }
 
